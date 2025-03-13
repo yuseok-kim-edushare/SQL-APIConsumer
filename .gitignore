@@ -15,3 +15,6 @@
 /API_Consumer/debug/
 /API_Consumer/bin/
 /API_Consumer/obj/
+/API_Consumer/obj
+/API_Consumer/bin
+/.vs
