@@ -17,14 +17,14 @@
     <ModelCollation>1033, CI</ModelCollation>
     <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
     <DeployToDatabase>True</DeployToDatabase>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <TargetLanguage>CS</TargetLanguage>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <SqlServerVerification>False</SqlServerVerification>
     <IncludeCompositeObjects>True</IncludeCompositeObjects>
     <TargetDatabaseSet>True</TargetDatabaseSet>
-    <SignAssembly>False</SignAssembly>
-    <AssemblyOriginatorKeyFile>Key.pfx</AssemblyOriginatorKeyFile>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>public_key.snk</AssemblyOriginatorKeyFile>
     <PermissionSet>UNSAFE</PermissionSet>
     <TargetFrameworkProfile />
     <DacVersion>2.1.0.0</DacVersion>
@@ -96,6 +96,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Key.pfx" />
+    <None Include="public_key.snk" />
   </ItemGroup>
   <PropertyGroup>
     <PreBuildEvent>
