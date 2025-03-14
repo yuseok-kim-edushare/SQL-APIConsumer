@@ -5,6 +5,9 @@ using System.IO;
 using System.Net;
 using System.Runtime.Serialization;
 using API_Consumer;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
 
 namespace SQLAPI_Consumer
 {
@@ -1081,142 +1084,81 @@ namespace SQLAPI_Consumer
         /// <returns></returns>
         public static string WebMethod_Extended(ref ExtendedResult extResult, string httpMethod, string url, string JsonBody = "", string Headers = "")
         {
-            string ContentResult = string.Empty;
-            try
+            // Use Task.Run to synchronously wait for async result
+            return Task.Run(async () => 
             {
-                SetSSL();
-
-                validateParams(ParamsName.webMethod, httpMethod);
-                validateParams(ParamsName.URL, url);
-
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-
-                request.Method = httpMethod;
-
-                if (!string.IsNullOrEmpty(Headers))
+                string contentResult = string.Empty;
+                try
                 {
-                    List<Headers> _headers = JsonConvert.DeserializeObject<List<Headers>>(Headers);
-
-                    foreach (var Header in _headers)
+                    SetSSL();
+                    validateParams(ParamsName.webMethod, httpMethod);
+                    validateParams(ParamsName.URL, url);
+                    
+                    var request = new HttpRequestMessage(new HttpMethod(httpMethod), url);
+                    
+                    // Add headers
+                    if (!string.IsNullOrEmpty(Headers))
                     {
-                        if (!string.IsNullOrEmpty(Header.Name) && !string.IsNullOrEmpty(Header.Value))
+                        List<Headers> _headers = JsonConvert.DeserializeObject<List<Headers>>(Headers);
+                        foreach (var header in _headers)
                         {
-                            if (Header.Name.Contains(Header_ContentType))
+                            if (!string.IsNullOrEmpty(header.Name) && !string.IsNullOrEmpty(header.Value))
                             {
-                                request.ContentType = Header.Value;
+                                if (header.Name.Contains(Header_ContentType))
+                                {
+                                    request.Content?.Headers.ContentType = new MediaTypeHeaderValue(header.Value);
+                                }
+                                else
+                                {
+                                    request.Headers.Add(header.Name, header.Value);
+                                }
                             }
-                            else
-                            {
-                                request.Headers.Add(Header.Name, Header.Value);
-                            }
                         }
                     }
-                }
-
-                // Set default Content-Type
-                if (string.IsNullOrEmpty(request.ContentType))
-                {
-                    request.ContentType = CONTENTTYPE;
-                }
-
-                if (request.ContentType.ToLower() == CONTENTTYPE_URLENCODED.ToLower())
-                {
-                    byte[] byteArray = System.Text.Encoding.UTF8.GetBytes((!String.IsNullOrEmpty(JsonBody)) ? JsonBody : "");
-                    // Set the ContentLength property of the WebRequest.  
-                    request.ContentLength = byteArray.Length;
-
-                    using (var streamWriter = request.GetRequestStream())
+                    
+                    // Add content based on content type
+                    if (!string.IsNullOrEmpty(JsonBody) && httpMethod.ToUpper() != "GET")
                     {
-                        streamWriter.Write(byteArray, 0, byteArray.Length);
-                        // Close the Stream object.  
-                        streamWriter.Close();
-                        // Get the response.  
-
-                        streamWriter.Flush();
-                    }
-                }
-                else if (!String.IsNullOrEmpty(JsonBody) 
-                        && !httpMethod.ToUpper().Contains("GET") )
-                {
-                    using (var streamWriter = new StreamWriter(request.GetRequestStream()))
-                    {
-                        streamWriter.Write(JsonBody);
-                        streamWriter.Flush();
-                    }
-                }
-
-                var httpResponse = (HttpWebResponse)request.GetResponse();
-
-                if (httpResponse != null)
-                {
-                    extResult.ContentType = httpResponse.ContentType;
-                    extResult.Server = httpResponse.Server;
-                    extResult.StatusCode = ((int)httpResponse.StatusCode).ToString();
-                    extResult.StatusDescription = httpResponse.StatusDescription;
-                }
-
-                using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
-                {
-                    var result = streamReader.ReadToEnd();
-                    extResult.Result = ContentResult = result;
-
-                    for (int i = 0; i < httpResponse.Headers.Count; ++i)
-                    {
-                        extResult.headers.Add(
-                                                   new Headers()
-                                                   {
-                                                       Name = httpResponse.Headers.Keys[i],
-                                                       Value = httpResponse.Headers[i]
-                                                   }
-                                            );
-                    }
-
-                }
-            }
-            catch (WebException ex)
-            {
-                using (var stream = ex.Response?.GetResponseStream())
-                {
-                    if (stream != null)
-                    {
-                        var response = ex.Response as HttpWebResponse;
-                        if (response != null)
+                        if (request.Content?.Headers.ContentType?.MediaType?.ToLower() == CONTENTTYPE_URLENCODED.ToLower())
                         {
-                            extResult.StatusCode = ((int)response.StatusCode).ToString();
-                            extResult.StatusDescription = response.StatusDescription;
-                            extResult.ContentType = response.ContentType;
-                            extResult.Server = response.Server;
+                            request.Content = new StringContent(JsonBody, Encoding.UTF8, "application/x-www-form-urlencoded");
                         }
-
-                        using (var reader = new StreamReader(stream))
+                        else
                         {
-                            var result = reader.ReadToEnd();
-                            extResult.Result = ContentResult = result;
+                            request.Content = new StringContent(JsonBody, Encoding.UTF8, "application/json");
                         }
                     }
-                    else
+                    
+                    // Execute request
+                    var response = await _httpClient.SendAsync(request);
+                    
+                    // Populate extended result
+                    extResult.StatusCode = ((int)response.StatusCode).ToString();
+                    extResult.StatusDescription = response.ReasonPhrase;
+                    extResult.ContentType = response.Content.Headers.ContentType?.MediaType;
+                    extResult.Server = response.Headers.Server?.ToString();
+                    
+                    // Get response content
+                    contentResult = await response.Content.ReadAsStringAsync();
+                    extResult.Result = contentResult;
+                    
+                    // Add response headers
+                    foreach (var header in response.Headers)
                     {
-                        ContentResult = ex.Message.ToString();
-                        extResult.StatusCode = ((int)HttpStatusCode.InternalServerError).ToString();
-                        extResult.StatusDescription = HttpStatusCode.InternalServerError.ToString();
+                        extResult.headers.Add(new Headers { Name = header.Key, Value = string.Join(",", header.Value) });
                     }
-
-                    if (string.IsNullOrEmpty(extResult.Result))
-                    {
-                        extResult.Result = ContentResult;
-                    }
+                    
+                    return contentResult;
                 }
-            }
-            catch (Exception ex)
-            {
-                ContentResult = ex.Message.ToString();
-                extResult.Result = ContentResult;
-                extResult.StatusCode = ((int)HttpStatusCode.InternalServerError).ToString();
-                extResult.StatusDescription = HttpStatusCode.InternalServerError.ToString();
-                throw ex;
-            }
-
-            return ContentResult;
+                catch (HttpRequestException ex)
+                {
+                    contentResult = ex.Message;
+                    extResult.Result = contentResult;
+                    extResult.StatusCode = "500";
+                    extResult.StatusDescription = "Internal Server Error";
+                    return contentResult;
+                }
+            }).GetAwaiter().GetResult();
         }
 
         private static void validateParams(ParamsName pname, string paramVal)
