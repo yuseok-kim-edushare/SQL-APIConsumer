@@ -8,6 +8,7 @@ using API_Consumer;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using System.Text;
 
 namespace SQLAPI_Consumer
 {
@@ -64,6 +65,9 @@ namespace SQLAPI_Consumer
         public const string DEFAULT_COLUMN_ERROR = "Error";
 
         private enum ParamsName { webMethod , URL }
+
+        // Add static HttpClient instance
+        private static readonly HttpClient _httpClient = new HttpClient();
 
         /// <summary>
         /// POST to Resful API sending Json body.
@@ -1084,141 +1088,175 @@ namespace SQLAPI_Consumer
         /// <returns></returns>
         public static string WebMethod_Extended(ref ExtendedResult extResult, string httpMethod, string url, string JsonBody = "", string Headers = "")
         {
-            // Use Task.Run to synchronously wait for async result
-            return Task.Run(async () => 
+            // Create a local copy to work with
+            ExtendedResult localResult = extResult ?? new ExtendedResult();
+            
+            // Call the async method and wait for it synchronously without using Task.Run with ref parameter
+            string result = WebMethod_ExtendedAsync(localResult, httpMethod, url, JsonBody, Headers).GetAwaiter().GetResult();
+            
+            // Copy the local result back to the ref parameter
+            extResult = localResult;
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// Async implementation of the WebMethod_Extended to avoid ref parameter in lambda issues
+        /// </summary>
+        private static async Task<string> WebMethod_ExtendedAsync(ExtendedResult extResult, string httpMethod, string url, string JsonBody = "", string Headers = "")
+        {
+            string contentResult = string.Empty;
+            HttpResponseMessage response = null;
+            try
             {
-                string contentResult = string.Empty;
-                HttpResponseMessage response = null;
+                SetSSL();
+                validateParams(ParamsName.webMethod, httpMethod);
+                validateParams(ParamsName.URL, url);
+                
+                var request = new HttpRequestMessage(new HttpMethod(httpMethod), url);
+                
+                // Add headers
+                if (!string.IsNullOrEmpty(Headers))
+                {
+                    List<Headers> _headers = JsonConvert.DeserializeObject<List<Headers>>(Headers);
+                    foreach (var header in _headers)
+                    {
+                        if (!string.IsNullOrEmpty(header.Name) && !string.IsNullOrEmpty(header.Value))
+                        {
+                            if (header.Name.Contains(Header_ContentType))
+                            {
+                                // Don't set content-type header directly on the request
+                                // Store it for when we create the content
+                                continue;
+                            }
+                            else
+                            {
+                                request.Headers.Add(header.Name, header.Value);
+                            }
+                        }
+                    }
+                }
+                
+                // Add content based on content type
+                string contentType = CONTENTTYPE; // Default content type
+                
+                if (!string.IsNullOrEmpty(Headers))
+                {
+                    List<Headers> _headers = JsonConvert.DeserializeObject<List<Headers>>(Headers);
+                    foreach (var header in _headers)
+                    {
+                        if (!string.IsNullOrEmpty(header.Name) && header.Name.Contains(Header_ContentType))
+                        {
+                            contentType = header.Value;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!string.IsNullOrEmpty(JsonBody) && httpMethod.ToUpper() != "GET")
+                {
+                    if (contentType.ToLower() == CONTENTTYPE_URLENCODED.ToLower())
+                    {
+                        request.Content = new StringContent(JsonBody, Encoding.UTF8, "application/x-www-form-urlencoded");
+                    }
+                    else
+                    {
+                        request.Content = new StringContent(JsonBody, Encoding.UTF8, "application/json");
+                    }
+                }
+                
+                // Execute request
+                response = await _httpClient.SendAsync(request);
+                
+                // Populate extended result with HTTP info
+                extResult.StatusCode = ((int)response.StatusCode).ToString();
+                extResult.StatusDescription = response.ReasonPhrase;
+                extResult.ContentType = response.Content.Headers.ContentType?.MediaType;
+                extResult.Server = response.Headers.Server?.ToString();
+                
+                // Get response content
+                contentResult = await response.Content.ReadAsStringAsync();
+                extResult.Result = contentResult;
+                
+                // Add response headers
+                foreach (var header in response.Headers)
+                {
+                    extResult.headers.Add(new Headers { Name = header.Key, Value = string.Join(",", header.Value) });
+                }
+                
+                // Add content headers too
+                foreach (var header in response.Content.Headers)
+                {
+                    extResult.headers.Add(new Headers { Name = header.Key, Value = string.Join(",", header.Value) });
+                }
+                
+                return contentResult;
+            }
+            catch (HttpRequestException ex)
+            {
+                extResult.Result = ex.Message;
+                
+                // Handle StatusCode property which may not exist in older .NET versions
                 try
                 {
-                    SetSSL();
-                    validateParams(ParamsName.webMethod, httpMethod);
-                    validateParams(ParamsName.URL, url);
-                    
-                    var request = new HttpRequestMessage(new HttpMethod(httpMethod), url);
-                    
-                    // Add headers
-                    if (!string.IsNullOrEmpty(Headers))
+                    // Use reflection to safely check for StatusCode property
+                    var statusCodeProperty = ex.GetType().GetProperty("StatusCode");
+                    if (statusCodeProperty != null)
                     {
-                        List<Headers> _headers = JsonConvert.DeserializeObject<List<Headers>>(Headers);
-                        foreach (var header in _headers)
+                        var statusCode = statusCodeProperty.GetValue(ex) as HttpStatusCode?;
+                        if (statusCode.HasValue)
                         {
-                            if (!string.IsNullOrEmpty(header.Name) && !string.IsNullOrEmpty(header.Value))
-                            {
-                                if (header.Name.Contains(Header_ContentType))
-                                {
-                                    // Don't set content-type header directly on the request
-                                    // Store it for when we create the content
-                                    continue;
-                                }
-                                else
-                                {
-                                    request.Headers.Add(header.Name, header.Value);
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Add content based on content type
-                    string contentType = CONTENTTYPE; // Default content type
-                    
-                    if (!string.IsNullOrEmpty(Headers))
-                    {
-                        List<Headers> _headers = JsonConvert.DeserializeObject<List<Headers>>(Headers);
-                        foreach (var header in _headers)
-                        {
-                            if (!string.IsNullOrEmpty(header.Name) && header.Name.Contains(Header_ContentType))
-                            {
-                                contentType = header.Value;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (!string.IsNullOrEmpty(JsonBody) && httpMethod.ToUpper() != "GET")
-                    {
-                        if (contentType.ToLower() == CONTENTTYPE_URLENCODED.ToLower())
-                        {
-                            request.Content = new StringContent(JsonBody, Encoding.UTF8, "application/x-www-form-urlencoded");
+                            extResult.StatusCode = ((int)statusCode.Value).ToString();
+                            extResult.StatusDescription = statusCode.Value.ToString();
                         }
                         else
                         {
-                            request.Content = new StringContent(JsonBody, Encoding.UTF8, "application/json");
+                            extResult.StatusCode = "500";
+                            extResult.StatusDescription = "Internal Server Error";
                         }
                     }
-                    
-                    // Execute request
-                    response = await _httpClient.SendAsync(request);
-                    
-                    // Populate extended result with HTTP info
-                    extResult.StatusCode = ((int)response.StatusCode).ToString();
-                    extResult.StatusDescription = response.ReasonPhrase;
-                    extResult.ContentType = response.Content.Headers.ContentType?.MediaType;
-                    extResult.Server = response.Headers.Server?.ToString();
-                    
-                    // Get response content
-                    contentResult = await response.Content.ReadAsStringAsync();
-                    extResult.Result = contentResult;
-                    
-                    // Add response headers
-                    foreach (var header in response.Headers)
+                    else
                     {
-                        extResult.headers.Add(new Headers { Name = header.Key, Value = string.Join(",", header.Value) });
+                        extResult.StatusCode = "500";
+                        extResult.StatusDescription = "Internal Server Error";
                     }
-                    
-                    // Add content headers too
-                    foreach (var header in response.Content.Headers)
-                    {
-                        extResult.headers.Add(new Headers { Name = header.Key, Value = string.Join(",", header.Value) });
-                    }
-                    
-                    return contentResult;
                 }
-                catch (HttpRequestException ex)
+                catch
                 {
-                    extResult.Result = ex.Message;
-                    extResult.StatusCode = ex.StatusCode.HasValue ? ((int)ex.StatusCode.Value).ToString() : "500";
-                    extResult.StatusDescription = ex.StatusCode.HasValue ? ex.StatusCode.Value.ToString() : "HTTP Request Error";
-                    
-                    // Include inner exception details if available
-                    if (ex.InnerException != null)
-                    {
-                        extResult.Result += $" | Inner error: {ex.InnerException.Message}";
-                    }
-                    
-                    return extResult.Result;
+                    // Fallback if reflection fails
+                    extResult.StatusCode = "500";
+                    extResult.StatusDescription = "Internal Server Error";
                 }
-                catch (TaskCanceledException ex)
+                
+                // Include inner exception details if available
+                if (ex.InnerException != null)
                 {
-                    extResult.Result = "Request timed out or was canceled";
-                    extResult.StatusCode = "408"; // Request Timeout
-                    extResult.StatusDescription = "Request Timeout";
-                    return extResult.Result;
+                    extResult.Result += $" | Inner error: {ex.InnerException.Message}";
                 }
-                catch (JsonException ex)
-                {
-                    extResult.Result = $"JSON parsing error: {ex.Message}";
-                    extResult.StatusCode = "400";
-                    extResult.StatusDescription = "Bad Request - Invalid JSON";
-                    return extResult.Result;
-                }
-                catch (Exception ex)
-                {
-                    extResult.Result = ex.Message;
-                    extResult.StatusCode = response?.StatusCode != null ? ((int)response.StatusCode).ToString() : "500";
-                    extResult.StatusDescription = response?.ReasonPhrase ?? "Internal Server Error";
-                    
-                    // Include exception type for better debugging
-                    extResult.Result = $"{ex.GetType().Name}: {ex.Message}";
-                    
-                    if (ex.InnerException != null)
-                    {
-                        extResult.Result += $" | Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}";
-                    }
-                    
-                    return extResult.Result;
-                }
-            }).GetAwaiter().GetResult();
+                
+                return extResult.Result;
+            }
+            catch (TaskCanceledException)
+            {
+                extResult.Result = "Request timed out or was canceled";
+                extResult.StatusCode = "408"; // Request Timeout
+                extResult.StatusDescription = "Request Timeout";
+                return extResult.Result;
+            }
+            catch (JsonException ex)
+            {
+                extResult.Result = $"JSON parsing error: {ex.Message}";
+                extResult.StatusCode = "400";
+                extResult.StatusDescription = "Bad Request - Invalid JSON";
+                return extResult.Result;
+            }
+            catch (Exception)
+            {
+                extResult.Result = "An unexpected error occurred";
+                extResult.StatusCode = response?.StatusCode != null ? ((int)response.StatusCode).ToString() : "500";
+                extResult.StatusDescription = response?.ReasonPhrase ?? "Internal Server Error";
+                return extResult.Result;
+            }
         }
 
         private static void validateParams(ParamsName pname, string paramVal)
