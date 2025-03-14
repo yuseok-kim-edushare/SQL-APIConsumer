@@ -180,14 +180,12 @@ namespace SQLAPI_Consumer
         /// <returns>string SHA256</returns>
         public static string CreateSignature(string message, string secret)
         {
-
-            byte[] keyBytes = SignatureEncoding.GetBytes(secret);
-            byte[] messageBytes = SignatureEncoding.GetBytes(message);
-            HMACSHA256 hmacsha256 = new HMACSHA256(keyBytes);
-
-            byte[] bytes = hmacsha256.ComputeHash(messageBytes);
-
-            return BitConverter.ToString(bytes).Replace("-", "").ToLower();
+            using (HMACSHA256 hmacsha256 = new HMACSHA256(SignatureEncoding.GetBytes(secret)))
+            {
+                byte[] messageBytes = SignatureEncoding.GetBytes(message);
+                byte[] bytes = hmacsha256.ComputeHash(messageBytes);
+                return BitConverter.ToString(bytes).Replace("-", "").ToLower();
+            }
         }
 
         /// <summary>
