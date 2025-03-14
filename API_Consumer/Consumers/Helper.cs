@@ -227,8 +227,11 @@ namespace SQLAPI_Consumer
         /// <returns>Base64 string</returns>
         public static string GetBytes_Encoding_ASCII(string _value)
         {
-            var byteArray = Encoding.ASCII.GetBytes(_value);
 
+            if (string.IsNullOrEmpty(_value))
+                return string.Empty;
+
+            var byteArray = Encoding.ASCII.GetBytes(_value);
             return Convert.ToBase64String(byteArray);
         }
 
@@ -238,8 +241,11 @@ namespace SQLAPI_Consumer
         /// <returns>Base64 string</returns>
         public static string GetBytes_Encoding_UTF8(string _value)
         {
-            var byteArray = Encoding.UTF8.GetBytes(_value);
 
+            if (string.IsNullOrEmpty(_value))
+                return string.Empty;
+
+            var byteArray = Encoding.UTF8.GetBytes(_value);
             return Convert.ToBase64String(byteArray);
         }
     }
