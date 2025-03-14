@@ -16,18 +16,21 @@
     <AssemblyName>API_Consumer</AssemblyName>
     <ModelCollation>1033, CI</ModelCollation>
     <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
-    <DeployToDatabase>True</DeployToDatabase>
+    <DeployToDatabase>False</DeployToDatabase>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <TargetLanguage>CS</TargetLanguage>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <SqlServerVerification>False</SqlServerVerification>
     <IncludeCompositeObjects>True</IncludeCompositeObjects>
-    <TargetDatabaseSet>True</TargetDatabaseSet>
+    <TargetDatabaseSet>False</TargetDatabaseSet>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>public_key.snk</AssemblyOriginatorKeyFile>
     <PermissionSet>UNSAFE</PermissionSet>
     <TargetFrameworkProfile />
     <DacVersion>2.1.0.0</DacVersion>
+    <!-- Added property to skip SQL deployment -->
+    <GenerateSqlPackage>false</GenerateSqlPackage>
+    <BuildProjectOnDeploy>false</BuildProjectOnDeploy>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -90,7 +93,7 @@
     <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
       <HintPath>dll\Newtonsoft.Json.dll</HintPath>
       <SpecificVersion>True</SpecificVersion>
-      <GenerateSqlClrDdl>True</GenerateSqlClrDdl>
+            <GenerateSqlClrDdl>True</GenerateSqlClrDdl>
       <SqlPermissionSet>UNSAFE</SqlPermissionSet>
     </Reference>
   </ItemGroup>
