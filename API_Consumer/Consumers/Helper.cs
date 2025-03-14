@@ -115,13 +115,15 @@ namespace SQLAPI_Consumer
 
             if (SqlContext.Pipe.IsSendingResults)
             {
+                string headersJson = JsonConvert.SerializeObject(extResult.headers, _serializerSettings);
+
                 Record.SetValues(
                                  extResult.Result
                                 , extResult.ContentType
                                 , extResult.Server
                                 , extResult.StatusCode
                                 , extResult.StatusDescription
-                                , JsonConvert.SerializeObject(extResult.headers)
+                                , headersJson
                                 );
 
                 SqlContext.Pipe.SendResultsRow(Record);
