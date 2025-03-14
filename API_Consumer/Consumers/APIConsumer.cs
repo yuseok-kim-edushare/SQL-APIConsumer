@@ -1168,23 +1168,23 @@ namespace SQLAPI_Consumer
             switch (pname)
             {
                 case ParamsName.webMethod:
-                    
-                    if (string.IsNullOrEmpty(paramVal) || !ContainAnyOf(paramVal, methods))
-                    {
-                        throw new ArgumentNullException(pname.ToString(), "Please provide a valid HTTP method (GET,POST,PUT,PATCH, DELETE).");
-                    }
                     if (string.IsNullOrEmpty(paramVal))
-                    {
-                        throw new ArgumentNullException(pname.ToString(), "Please provide a valid HTTP method (GET,POST,PUT,PATCH, DELETE).");
-                    }
-
-                    break;
+                        throw new ArgumentNullException(pname.ToString(), "HTTP method cannot be null or empty.");
+                
+                // Ensure method is uppercase and in valid list
+                string upperMethod = paramVal.ToUpperInvariant();
+                if (!ContainAnyOf(upperMethod, methods))
+                    throw new ArgumentException("Please provide a valid HTTP method (GET, POST, PUT, PATCH, DELETE).", pname.ToString());
+                break;
+            
                 case ParamsName.URL:
                     if (string.IsNullOrEmpty(paramVal))
-                    {
-                        throw new ArgumentNullException(pname.ToString(), "Please provide a valid URL.");
-                    }
-                    break;
+                        throw new ArgumentNullException(pname.ToString(), "URL cannot be null or empty.");
+                
+                // Validate URL format
+                if (!Uri.IsWellFormedUriString(paramVal, UriKind.Absolute))
+                    throw new ArgumentException("Please provide a valid absolute URL.", pname.ToString());
+                break;
             }
         }
 
