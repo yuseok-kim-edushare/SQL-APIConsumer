@@ -1088,6 +1088,7 @@ namespace SQLAPI_Consumer
             return Task.Run(async () => 
             {
                 string contentResult = string.Empty;
+                HttpResponseMessage response = null;
                 try
                 {
                     SetSSL();
@@ -1106,7 +1107,9 @@ namespace SQLAPI_Consumer
                             {
                                 if (header.Name.Contains(Header_ContentType))
                                 {
-                                    request.Content?.Headers.ContentType = new MediaTypeHeaderValue(header.Value);
+                                    // Don't set content-type header directly on the request
+                                    // Store it for when we create the content
+                                    continue;
                                 }
                                 else
                                 {
@@ -1117,9 +1120,24 @@ namespace SQLAPI_Consumer
                     }
                     
                     // Add content based on content type
+                    string contentType = CONTENTTYPE; // Default content type
+                    
+                    if (!string.IsNullOrEmpty(Headers))
+                    {
+                        List<Headers> _headers = JsonConvert.DeserializeObject<List<Headers>>(Headers);
+                        foreach (var header in _headers)
+                        {
+                            if (!string.IsNullOrEmpty(header.Name) && header.Name.Contains(Header_ContentType))
+                            {
+                                contentType = header.Value;
+                                break;
+                            }
+                        }
+                    }
+                    
                     if (!string.IsNullOrEmpty(JsonBody) && httpMethod.ToUpper() != "GET")
                     {
-                        if (request.Content?.Headers.ContentType?.MediaType?.ToLower() == CONTENTTYPE_URLENCODED.ToLower())
+                        if (contentType.ToLower() == CONTENTTYPE_URLENCODED.ToLower())
                         {
                             request.Content = new StringContent(JsonBody, Encoding.UTF8, "application/x-www-form-urlencoded");
                         }
@@ -1130,9 +1148,9 @@ namespace SQLAPI_Consumer
                     }
                     
                     // Execute request
-                    var response = await _httpClient.SendAsync(request);
+                    response = await _httpClient.SendAsync(request);
                     
-                    // Populate extended result
+                    // Populate extended result with HTTP info
                     extResult.StatusCode = ((int)response.StatusCode).ToString();
                     extResult.StatusDescription = response.ReasonPhrase;
                     extResult.ContentType = response.Content.Headers.ContentType?.MediaType;
@@ -1148,15 +1166,57 @@ namespace SQLAPI_Consumer
                         extResult.headers.Add(new Headers { Name = header.Key, Value = string.Join(",", header.Value) });
                     }
                     
+                    // Add content headers too
+                    foreach (var header in response.Content.Headers)
+                    {
+                        extResult.headers.Add(new Headers { Name = header.Key, Value = string.Join(",", header.Value) });
+                    }
+                    
                     return contentResult;
                 }
                 catch (HttpRequestException ex)
                 {
-                    contentResult = ex.Message;
-                    extResult.Result = contentResult;
-                    extResult.StatusCode = "500";
-                    extResult.StatusDescription = "Internal Server Error";
-                    return contentResult;
+                    extResult.Result = ex.Message;
+                    extResult.StatusCode = ex.StatusCode.HasValue ? ((int)ex.StatusCode.Value).ToString() : "500";
+                    extResult.StatusDescription = ex.StatusCode.HasValue ? ex.StatusCode.Value.ToString() : "HTTP Request Error";
+                    
+                    // Include inner exception details if available
+                    if (ex.InnerException != null)
+                    {
+                        extResult.Result += $" | Inner error: {ex.InnerException.Message}";
+                    }
+                    
+                    return extResult.Result;
+                }
+                catch (TaskCanceledException ex)
+                {
+                    extResult.Result = "Request timed out or was canceled";
+                    extResult.StatusCode = "408"; // Request Timeout
+                    extResult.StatusDescription = "Request Timeout";
+                    return extResult.Result;
+                }
+                catch (JsonException ex)
+                {
+                    extResult.Result = $"JSON parsing error: {ex.Message}";
+                    extResult.StatusCode = "400";
+                    extResult.StatusDescription = "Bad Request - Invalid JSON";
+                    return extResult.Result;
+                }
+                catch (Exception ex)
+                {
+                    extResult.Result = ex.Message;
+                    extResult.StatusCode = response?.StatusCode != null ? ((int)response.StatusCode).ToString() : "500";
+                    extResult.StatusDescription = response?.ReasonPhrase ?? "Internal Server Error";
+                    
+                    // Include exception type for better debugging
+                    extResult.Result = $"{ex.GetType().Name}: {ex.Message}";
+                    
+                    if (ex.InnerException != null)
+                    {
+                        extResult.Result += $" | Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}";
+                    }
+                    
+                    return extResult.Result;
                 }
             }).GetAwaiter().GetResult();
         }
