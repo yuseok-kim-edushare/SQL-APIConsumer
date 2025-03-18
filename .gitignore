@@ -18,3 +18,4 @@
 /API_Consumer/obj
 /API_Consumer/bin
 /.vs
+*.user
