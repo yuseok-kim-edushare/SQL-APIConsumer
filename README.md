@@ -207,7 +207,6 @@ Set your database to TRUSTWORTHY mode on.
 ```
 ALTER DATABASE TESTDB SET TRUSTWORTHY ON
 ```
-
 ###### **STEP 3**
 Create Assembly System.Runtim.Serialization from .Net Framework. Confirm what version of .Net you have installed and modify the path below with the correct one.
 
@@ -276,9 +275,53 @@ WITH PERMISSION_SET = UNSAFE
 ```
 
 If you do not know the path where this dll is located or this command above doesn't work. You could try with attached version in tag 2.0; 
- 
+```
+ALTER DATABASE TESTDB SET TRUSTWORTHY ON
+```
+
+###### **STEP 3**
+Using ILRepack for a Simplified Installation
+
+This project now uses ILRepack to merge all required assemblies (including Newtonsoft.Json, System.Runtime.Serialization, etc.) into a single DLL. This approach has several advantages:
+
+1. Simplified deployment - only one DLL needs to be registered in SQL Server
+2. No dependency management - all required libraries are bundled together
+3. Reduced configuration errors - eliminates issues with missing assemblies or version conflicts
+
+### Installing with the Merged Assembly
+
+###### **STEP 1**
+Create a folder named CLR in an accessible location (e.g., "C:\CLR") and copy the merged DLL:
+
+1. Use the pre-built merged DLL from the `clr_files` folder: `API_Consumer.dll`
+2. Or if building from source, get it from `bin\Debug\Merged\API_Consumer.dll`
+
+```
+C:\CLR\API_Consumer.dll
+```
+
 ###### **STEP 2**
-After that we can create our CLR Stored procedures:
+Register the assembly using the provided SQL script:
+
+1. Copy `register_assembly.sql` from the `clr_files` folder to an accessible location
+2. Edit the path in the script if you placed the DLL somewhere other than `C:\CLR\API_Consumer.dll`
+3. Execute the script in SQL Server Management Studio
+
+The script will:
+- Enable CLR if not already enabled
+- Register the assembly as trusted (for SQL Server 2017+)
+- Drop any existing assembly with the same name
+- Create the new assembly with UNSAFE permission
+
+```sql
+-- Execute the script directly
+:r C:\Path\To\register_assembly.sql
+```
+
+> **Note**: For SQL Server versions prior to 2017, you may need to modify the script to remove the trusted assembly registration section.
+
+###### **STEP 3**
+After registering the assembly, create the CLR stored procedures and functions:
 
 ```
 GO
@@ -628,7 +671,8 @@ Make sure that the user on your SQL Server instance have grant access to CLR Fol
 
 ## Built With
 
-* [C#](https://www.microsoft.com/en-us/download/details.aspx?id=7029/) - CLR develop in C# in .net framework 4.5.
+* [C#](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net48) - CLR develop in C# in .net framework 4.8.
+* [Visual Studio](https://visualstudio.microsoft.com/downloads) - This Project needs Visual Studio's build system
 * [SQL Server 2016+](https://www.microsoft.com/es-es/sql-server//) - Could be deployed in SQL server 2016 or later.
 
 If you are working in an older version like 2008 or 2012 you would need to keep this in mind:
