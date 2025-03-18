@@ -76,6 +76,8 @@
     <Folder Include="DTO" />
     <Folder Include="Procedures" />
     <Folder Include="Consumers" />
+    <Folder Include="clr_files" />
+    <Folder Include="dll" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Procedures\APICaller_POST.cs" />
