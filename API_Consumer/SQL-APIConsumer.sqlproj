@@ -22,15 +22,23 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <SqlServerVerification>False</SqlServerVerification>
     <IncludeCompositeObjects>True</IncludeCompositeObjects>
-    <TargetDatabaseSet>False</TargetDatabaseSet>
+    <TargetDatabaseSet>True</TargetDatabaseSet>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>public_key.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>True</DelaySign>
     <PermissionSet>UNSAFE</PermissionSet>
     <TargetFrameworkProfile />
     <DacVersion>2.1.0.0</DacVersion>
     <!-- Added property to skip SQL deployment -->
     <GenerateSqlPackage>false</GenerateSqlPackage>
     <BuildProjectOnDeploy>false</BuildProjectOnDeploy>
+    <DelaySign>True</DelaySign>
+    <!-- Added properties for ILRepack -->
+    <ILRepackPackage>ILRepack</ILRepackPackage>
+    <ILRepackVersion>2.0.40</ILRepackVersion>
+    <ILRepackTargetPlatform>v4,C:\Windows\Microsoft.NET\Framework64\v4.0.30319</ILRepackTargetPlatform>
+    <ILRepackOutputAssembly>$(OutputPath)Merged\$(AssemblyName).dll</ILRepackOutputAssembly>
+    <ILRepackKeyFile>$(ProjectDir)$(AssemblyOriginatorKeyFile)</ILRepackKeyFile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -90,9 +98,7 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Net.Http" />
-    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
-      <HintPath>dll\Newtonsoft.Json.dll</HintPath>
-    </Reference>
+    <Reference Include="System.Runtime.Serialization" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Key.pfx" />
@@ -101,5 +107,25 @@
   <PropertyGroup>
     <PreBuildEvent>
     </PreBuildEvent>
+    <!-- ILRepack as post-build event -->
+    <PostBuildEvent>
+      if not exist "$(ProjectDir)packages" mkdir "$(ProjectDir)packages"
+      if not exist "$(ProjectDir)packages\$(ILRepackPackage).$(ILRepackVersion)" (
+          nuget install $(ILRepackPackage) -Version $(ILRepackVersion) -OutputDirectory "$(ProjectDir)packages"
+      )
+      if not exist "$(OutputPath)Merged" mkdir "$(OutputPath)Merged"
+      "$(ProjectDir)packages\$(ILRepackPackage).$(ILRepackVersion)\tools\ILRepack.exe" /target:library /targetplatform:$(ILRepackTargetPlatform) /keyfile:"$(ILRepackKeyFile)" /out:"$(ILRepackOutputAssembly)" "$(OutputPath)$(AssemblyName).dll" "$(ProjectDir)dll\Newtonsoft.Json.dll" "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.Serialization.dll" "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.ServiceModel.Internals.dll"
+      
+      echo -- SQL script for registering merged assembly &gt; "$(OutputPath)Merged\RegisterAssembly.sql"
+      echo USE [master] &gt;&gt; "$(OutputPath)Merged\RegisterAssembly.sql"
+      echo GO &gt;&gt; "$(OutputPath)Merged\RegisterAssembly.sql"
+      echo CREATE ASSEMBLY [API_Consumer] FROM '$(ILRepackOutputAssembly)' WITH PERMISSION_SET = UNSAFE; &gt;&gt; "$(OutputPath)Merged\RegisterAssembly.sql"
+      echo GO &gt;&gt; "$(OutputPath)Merged\RegisterAssembly.sql"
+    </PostBuildEvent>
   </PropertyGroup>
+  <!-- NuGet Packages -->
+  <ItemGroup>
+    <PackageReference Include="$(ILRepackPackage)" Version="$(ILRepackVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
 </Project>
