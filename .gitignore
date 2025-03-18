@@ -19,3 +19,5 @@
 /API_Consumer/bin
 /.vs
 *.user
+/API_Consumer/Merged
+/API_Consumer/packages
