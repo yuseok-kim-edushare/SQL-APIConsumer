@@ -102,6 +102,10 @@
     <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed">
       <HintPath>dll\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="System.Runtime" />
+    <Reference Include="System.Text.Encoding" />
+    <Reference Include="System.Threading.Tasks" />
+    <Reference Include="System.Net.Primitives" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Key.pfx" />
@@ -114,7 +118,7 @@
     <None Include="dll\System.Net.Http.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Build Include="clr_files\register_assembly.sql" />
+    <None Include="clr_files\register_assembly.sql" />
   </ItemGroup>
   <PropertyGroup>
     <PreBuildEvent>
