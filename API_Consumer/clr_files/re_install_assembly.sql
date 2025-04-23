@@ -38,6 +38,22 @@ BEGIN
 END
 
 -- =============================================
+-- Drop the assembly of Dependency : If you using these in other parts, you can ignore this parts
+-- =============================================
+IF EXISTS (SELECT * FROM sys.assemblies WHERE name = 'Newtonsoft.Json')
+BEGIN
+    DROP ASSEMBLY [Newtonsoft.Json]
+END
+IF EXISTS (SELECT * FROM sys.assemblies WHERE name = 'System.Runtime.Serialization')
+BEGIN
+    DROP ASSEMBLY [System.Runtime.Serialization]
+END
+IF EXISTS (SELECT * FROM sys.assemblies WHERE name = 'SMDiagnostics')
+BEGIN
+    DROP ASSEMBLY [SMDiagnostics]
+END
+
+-- =============================================
 -- Create the assembly with the updated DLL
 -- =============================================
 CREATE ASSEMBLY [API_Consumer]
