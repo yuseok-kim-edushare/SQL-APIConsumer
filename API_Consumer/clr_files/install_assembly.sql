@@ -63,119 +63,91 @@ FETCH NEXT FROM db_cursor INTO @db;
 WHILE @@FETCH_STATUS = 0
 BEGIN
     BEGIN TRY
-        -- Build dynamic SQL for each DB
-        SET @dynamic_sql = '
-        USE [' + @db + '];
+        -- Change database context
+        EXEC('USE [' + @db + ']');
 
-        -- =============================================
         -- Drop dependent stored procedures and functions
-        -- =============================================
-        IF OBJECT_ID(''[dbo].[APICaller_WebMethod]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_WebMethod];
-        IF OBJECT_ID(''[dbo].[APICaller_Web_Extended]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_Web_Extended];
-        IF OBJECT_ID(''[dbo].[APICaller_GET]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_GET];
-        IF OBJECT_ID(''[dbo].[APICaller_POST]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_POST];
-        IF OBJECT_ID(''[dbo].[APICaller_POSTAuth]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_POSTAuth];
-        IF OBJECT_ID(''[dbo].[APICaller_GETAuth]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_GETAuth];
-        IF OBJECT_ID(''[dbo].[APICaller_GET_Headers]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_GET_Headers];
-        IF OBJECT_ID(''[dbo].[APICaller_GET_Headers_BODY]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_GET_Headers_BODY];
-        IF OBJECT_ID(''[dbo].[APICaller_POST_Headers]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_POST_Headers];
-        IF OBJECT_ID(''[dbo].[APICaller_POST_JsonBody_Header]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_POST_JsonBody_Header];
-        IF OBJECT_ID(''[dbo].[APICaller_GET_Extended]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_GET_Extended];
-        IF OBJECT_ID(''[dbo].[APICaller_POST_Extended]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_POST_Extended];
-        IF OBJECT_ID(''[dbo].[APICaller_POST_Encoded]'') IS NOT NULL DROP PROCEDURE [dbo].[APICaller_POST_Encoded];
+        SET @dynamic_sql =
+            'IF OBJECT_ID(''dbo.APICaller_WebMethod'') IS NOT NULL DROP PROCEDURE dbo.APICaller_WebMethod;'
+            + 'IF OBJECT_ID(''dbo.APICaller_Web_Extended'') IS NOT NULL DROP PROCEDURE dbo.APICaller_Web_Extended;'
+            + 'IF OBJECT_ID(''dbo.APICaller_GET'') IS NOT NULL DROP PROCEDURE dbo.APICaller_GET;'
+            + 'IF OBJECT_ID(''dbo.APICaller_POST'') IS NOT NULL DROP PROCEDURE dbo.APICaller_POST;'
+            + 'IF OBJECT_ID(''dbo.APICaller_POSTAuth'') IS NOT NULL DROP PROCEDURE dbo.APICaller_POSTAuth;'
+            + 'IF OBJECT_ID(''dbo.APICaller_GETAuth'') IS NOT NULL DROP PROCEDURE dbo.APICaller_GETAuth;'
+            + 'IF OBJECT_ID(''dbo.APICaller_GET_Headers'') IS NOT NULL DROP PROCEDURE dbo.APICaller_GET_Headers;'
+            + 'IF OBJECT_ID(''dbo.APICaller_GET_Headers_BODY'') IS NOT NULL DROP PROCEDURE dbo.APICaller_GET_Headers_BODY;'
+            + 'IF OBJECT_ID(''dbo.APICaller_POST_Headers'') IS NOT NULL DROP PROCEDURE dbo.APICaller_POST_Headers;'
+            + 'IF OBJECT_ID(''dbo.APICaller_POST_JsonBody_Header'') IS NOT NULL DROP PROCEDURE dbo.APICaller_POST_JsonBody_Header;'
+            + 'IF OBJECT_ID(''dbo.APICaller_GET_Extended'') IS NOT NULL DROP PROCEDURE dbo.APICaller_GET_Extended;'
+            + 'IF OBJECT_ID(''dbo.APICaller_POST_Extended'') IS NOT NULL DROP PROCEDURE dbo.APICaller_POST_Extended;'
+            + 'IF OBJECT_ID(''dbo.APICaller_POST_Encoded'') IS NOT NULL DROP PROCEDURE dbo.APICaller_POST_Encoded;'
+            + 'IF OBJECT_ID(''dbo.Create_HMACSHA256'') IS NOT NULL DROP FUNCTION dbo.Create_HMACSHA256;'
+            + 'IF OBJECT_ID(''dbo.GetTimestamp'') IS NOT NULL DROP FUNCTION dbo.GetTimestamp;'
+            + 'IF OBJECT_ID(''dbo.fn_GetBytes'') IS NOT NULL DROP FUNCTION dbo.fn_GetBytes;';
+        EXEC(@dynamic_sql);
 
-        IF OBJECT_ID(''[dbo].[Create_HMACSHA256]'') IS NOT NULL DROP FUNCTION [dbo].[Create_HMACSHA256];
-        IF OBJECT_ID(''[dbo].[GetTimestamp]'') IS NOT NULL DROP FUNCTION [dbo].[GetTimestamp];
-        IF OBJECT_ID(''[dbo].[fn_GetBytes]'') IS NOT NULL DROP FUNCTION [dbo].[fn_GetBytes];
-
-        -- =============================================
         -- Drop assemblies
-        -- =============================================
-        IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''API_Consumer'') DROP ASSEMBLY [API_Consumer];
-        IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''Newtonsoft.Json'') DROP ASSEMBLY [Newtonsoft.Json];
-        IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''System.Runtime.Serialization'') DROP ASSEMBLY [System.Runtime.Serialization];
-        IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''SMDiagnostics'') DROP ASSEMBLY [SMDiagnostics];
+        SET @dynamic_sql =
+            'IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''API_Consumer'') DROP ASSEMBLY [API_Consumer];'
+            + 'IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''Newtonsoft.Json'') DROP ASSEMBLY [Newtonsoft.Json];'
+            + 'IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''System.Runtime.Serialization'') DROP ASSEMBLY [System.Runtime.Serialization];'
+            + 'IF EXISTS (SELECT * FROM sys.assemblies WHERE name = ''SMDiagnostics'') DROP ASSEMBLY [SMDiagnostics];';
+        EXEC(@dynamic_sql);
 
-        -- =============================================
         -- Create the updated assembly
-        -- =============================================
-        CREATE ASSEMBLY [API_Consumer]
-        AUTHORIZATION dbo
-        FROM ''' + @dll_path + '''
-        WITH PERMISSION_SET = UNSAFE;
+        SET @dynamic_sql =
+            'CREATE ASSEMBLY [API_Consumer] AUTHORIZATION dbo FROM ''' + @dll_path + ''' WITH PERMISSION_SET = UNSAFE;';
+        EXEC(@dynamic_sql);
 
-        -- =============================================
-        -- Recreate Procedures and Functions
-        -- =============================================
+        -- Recreate Procedures and Functions (each in its own batch)
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_WebMethod @httpMethod NVARCHAR(MAX) NULL, @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_WebMethod];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_WebMethod]
-        @httpMethod NVARCHAR(MAX) NULL, @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_WebMethod];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_Web_Extended @httpMethod NVARCHAR(MAX) NULL, @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_Web_Extended];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_Web_Extended]
-        @httpMethod NVARCHAR(MAX) NULL, @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_Web_Extended];
+        SET @dynamic_sql = 'CREATE FUNCTION dbo.Create_HMACSHA256 (@message NVARCHAR(MAX) NULL, @SecretKey NVARCHAR(MAX) NULL) RETURNS NVARCHAR(MAX) AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[Create_HMACSHA256];';
+        EXEC(@dynamic_sql);
 
-        CREATE FUNCTION [dbo].[Create_HMACSHA256]
-        (@message NVARCHAR(MAX) NULL, @SecretKey NVARCHAR(MAX) NULL)
-        RETURNS NVARCHAR(MAX)
-        AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[Create_HMACSHA256];
+        SET @dynamic_sql = 'CREATE FUNCTION dbo.GetTimestamp() RETURNS NVARCHAR(MAX) AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[GetTimestamp];';
+        EXEC(@dynamic_sql);
 
-        CREATE FUNCTION [dbo].[GetTimestamp]()
-        RETURNS NVARCHAR(MAX)
-        AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[GetTimestamp];
+        SET @dynamic_sql = 'CREATE FUNCTION dbo.fn_GetBytes (@value NVARCHAR(MAX) NULL) RETURNS NVARCHAR(MAX) AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[fn_GetBytes];';
+        EXEC(@dynamic_sql);
 
-        CREATE FUNCTION [dbo].[fn_GetBytes]
-        (@value NVARCHAR(MAX) NULL)
-        RETURNS NVARCHAR(MAX)
-        AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[fn_GetBytes];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_GET @URL NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_GET]
-        @URL NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_POST @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_POST]
-        @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_POSTAuth @URL NVARCHAR(MAX) NULL, @Token NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST_Auth];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_POSTAuth]
-        @URL NVARCHAR(MAX) NULL, @Token NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST_Auth];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_GETAuth @URL NVARCHAR(MAX) NULL, @Token NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Auth];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_GETAuth]
-        @URL NVARCHAR(MAX) NULL, @Token NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Auth];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_GET_Headers @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Headers];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_GET_Headers]
-        @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Headers];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_GET_Headers_BODY @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_GET_JsonBody_Header;';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_GET_Headers_BODY]
-        @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_GET_JsonBody_Header;
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_POST_Headers @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_Headers;';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_POST_Headers]
-        @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_Headers;
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_POST_JsonBody_Header @URL NVARCHAR(MAX), @Headers NVARCHAR(MAX), @jSON NVARCHAR(MAX) AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_JsonBody_Headers;';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_POST_JsonBody_Header]
-        @URL NVARCHAR(MAX), @Headers NVARCHAR(MAX), @jSON NVARCHAR(MAX)
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_JsonBody_Headers;
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_GET_Extended @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Extended];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_GET_Extended]
-        @URL NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Extended];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_POST_Extended @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST_Extended];';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_POST_Extended]
-        @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST_Extended];
+        SET @dynamic_sql = 'CREATE PROCEDURE dbo.APICaller_POST_Encoded @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_Encoded;';
+        EXEC(@dynamic_sql);
 
-        CREATE PROCEDURE [dbo].[APICaller_POST_Encoded]
-        @URL NVARCHAR(MAX) NULL, @Headers NVARCHAR(MAX) NULL, @JsonBody NVARCHAR(MAX) NULL
-        AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_Encoded;
-        ';
-
-        EXEC sp_executesql @dynamic_sql;
     END TRY
     BEGIN CATCH
         -- Log the error
