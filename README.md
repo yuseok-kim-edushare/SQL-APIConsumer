@@ -674,7 +674,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 * **Geraldo Diaz** - *SQL Developer* - [geral2](https://github.com/geral2)
 
-See also the list of [contributors](https://github.com/geral2/SQL-APIConsumer/projects/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/geral2/SQL-APIConsumer/graphs/contributors) who participated in this project.
 
 ## License
 
