@@ -261,64 +261,45 @@ Keep in mind, if you used a different path you will also neeed to modify the scr
 
 ### Installing
 
-Now we are ready to install (create) the clr objects of SQL-APIConsumer. Let's do it!.
-
-
-###### **STEP 1**
-First, Let's create our Assembly:
-
-```
-CREATE ASSEMBLY [API_Consumer]
-AUTHORIZATION dbo
-FROM  N'C:\CLR\API_Consumer.dll'
-WITH PERMISSION_SET = UNSAFE
-```
-
-If you do not know the path where this dll is located or this command above doesn't work. You could try with attached version in tag 2.0; 
-```
-ALTER DATABASE TESTDB SET TRUSTWORTHY ON
-```
-
-###### **STEP 3**
-Using ILRepack for a Simplified Installation
-
-This project now uses ILRepack to merge all required assemblies (including Newtonsoft.Json, System.Runtime.Serialization, etc.) into a single DLL. This approach has several advantages:
+This project uses ILRepack to merge all required assemblies (including Newtonsoft.Json, System.Runtime.Serialization, etc.) into a single DLL. This approach has several advantages:
 
 1. Simplified deployment - only one DLL needs to be registered in SQL Server
 2. No dependency management - all required libraries are bundled together
 3. Reduced configuration errors - eliminates issues with missing assemblies or version conflicts
 
-### Installing with the Merged Assembly
+We now provide multiple deployment options for different scenarios. **For detailed deployment instructions, see [API_Consumer/clr_files/README_deployment.md](API_Consumer/clr_files/README_deployment.md)**.
+
+### Quick Installation (Single Database)
 
 ###### **STEP 1**
-Create a folder named CLR in an accessible location (e.g., "C:\CLR") and copy the merged DLL:
-
-1. Use the pre-built merged DLL from the `clr_files` folder: `API_Consumer.dll`
-2. Or if building from source, get it from `bin\Debug\Merged\API_Consumer.dll`
+Create a folder named CLR in an accessible location and copy the DLL:
 
 ```
 C:\CLR\API_Consumer.dll
 ```
 
+Use the pre-built merged DLL from the `clr_files` folder or build from source.
+
 ###### **STEP 2**
-Register the assembly using the provided SQL script:
+Choose your deployment method:
 
-1. Copy `register_assembly.sql` from the `clr_files` folder to an accessible location
-2. Edit the path in the script if you placed the DLL somewhere other than `C:\CLR\API_Consumer.dll`
-3. Execute the script in SQL Server Management Studio
+**Option A: Single Database (Recommended for new users)**
+1. Use `deploy_single_db.sql` from the `clr_files` folder
+2. Edit the database name and DLL path at the top of the script
+3. Run in SQL Server Management Studio
 
-The script will:
-- Enable CLR if not already enabled
-- Register the assembly as trusted (for SQL Server 2017+)
-- Drop any existing assembly with the same name
-- Create the new assembly with UNSAFE permission
+**Option B: Multiple Databases (Recommended for automation)**
+1. Use `deploy_multiple.ps1` PowerShell script
+2. Install SqlServer PowerShell module: `Install-Module -Name SqlServer`
+3. Run: `.\deploy_multiple.ps1 -TargetDatabases @("db1", "db2")`
 
-```sql
--- Execute the script directly
-:r C:\Path\To\register_assembly.sql
-```
+**Option C: Assembly Only**
+1. Use `register_assembly.sql` for basic assembly registration
+2. Manually create procedures using the scripts below
 
-> **Note**: For SQL Server versions prior to 2017, you may need to modify the script to remove the trusted assembly registration section.
+### Legacy Installation (Manual Assembly Creation)
+
+If you prefer the manual approach or need to understand the individual steps:
 
 ###### **STEP 3**
 After registering the assembly, create the CLR stored procedures and functions:
@@ -664,6 +645,8 @@ ALTER  ASSEMBLY [System.Runtime.Serialization]
 FROM 'C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.Serialization.dll' 
 WITH PERMISSION_SET = UNSAFE
 ```
+
+> **Note**: The new deployment scripts use ILRepack to avoid this issue by merging all dependencies. See [API_Consumer/clr_files/README_deployment.md](API_Consumer/clr_files/README_deployment.md) for the recommended deployment methods.
 
 ## Deployment
 
