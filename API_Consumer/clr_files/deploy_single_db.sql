@@ -200,6 +200,7 @@ PRINT 'Stored procedures created';
 -- =============================================
 
 PRINT 'Creating functions...';
+Go
 
 -- Create_HMACSHA256
 CREATE FUNCTION dbo.Create_HMACSHA256 

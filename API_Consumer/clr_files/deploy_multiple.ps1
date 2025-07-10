@@ -103,6 +103,7 @@ PRINT 'Created API_Consumer assembly';
 -- =============================================
 
 PRINT 'Creating stored procedures...';
+GO
 
 -- APICaller_WebMethod
 CREATE PROCEDURE dbo.APICaller_WebMethod
@@ -110,8 +111,7 @@ CREATE PROCEDURE dbo.APICaller_WebMethod
     @URL NVARCHAR(MAX) NULL, 
     @JsonBody NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_WebMethod];
-
-PRINT 'APICaller_WebMethod created';
+GO
 
 -- APICaller_Web_Extended
 CREATE PROCEDURE dbo.APICaller_Web_Extended
@@ -120,23 +120,20 @@ CREATE PROCEDURE dbo.APICaller_Web_Extended
     @Headers NVARCHAR(MAX) NULL, 
     @JsonBody NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_Web_Extended];
-
-PRINT 'APICaller_Web_Extended created';
+GO
 
 -- APICaller_GET
 CREATE PROCEDURE dbo.APICaller_GET
     @URL NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET];
-
-PRINT 'APICaller_GET created';
+GO
 
 -- APICaller_POST
 CREATE PROCEDURE dbo.APICaller_POST
     @URL NVARCHAR(MAX) NULL, 
     @JsonBody NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST];
-
-PRINT 'APICaller_POST created';
+GO
 
 -- APICaller_POSTAuth
 CREATE PROCEDURE dbo.APICaller_POSTAuth
@@ -144,24 +141,21 @@ CREATE PROCEDURE dbo.APICaller_POSTAuth
     @Token NVARCHAR(MAX) NULL, 
     @JsonBody NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST_Auth];
-
-PRINT 'APICaller_POSTAuth created';
+GO
 
 -- APICaller_GETAuth
 CREATE PROCEDURE dbo.APICaller_GETAuth
     @URL NVARCHAR(MAX) NULL, 
     @Token NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Auth];
-
-PRINT 'APICaller_GETAuth created';
+GO
 
 -- APICaller_GET_Headers
 CREATE PROCEDURE dbo.APICaller_GET_Headers
     @URL NVARCHAR(MAX) NULL, 
     @Headers NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Headers];
-
-PRINT 'APICaller_GET_Headers created';
+GO
 
 -- APICaller_GET_Headers_BODY
 CREATE PROCEDURE dbo.APICaller_GET_Headers_BODY
@@ -169,16 +163,14 @@ CREATE PROCEDURE dbo.APICaller_GET_Headers_BODY
     @JsonBody NVARCHAR(MAX) NULL, 
     @Headers NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_GET_JsonBody_Header;
-
-PRINT 'APICaller_GET_Headers_BODY created';
+GO
 
 -- APICaller_POST_Headers
 CREATE PROCEDURE dbo.APICaller_POST_Headers
     @URL NVARCHAR(MAX) NULL, 
     @Headers NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_Headers;
-
-PRINT 'APICaller_POST_Headers created';
+GO
 
 -- APICaller_POST_JsonBody_Header
 CREATE PROCEDURE dbo.APICaller_POST_JsonBody_Header
@@ -186,8 +178,7 @@ CREATE PROCEDURE dbo.APICaller_POST_JsonBody_Header
     @Headers NVARCHAR(MAX), 
     @jSON NVARCHAR(MAX)
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_JsonBody_Headers;
-
-PRINT 'APICaller_POST_JsonBody_Header created';
+GO
 
 -- APICaller_GET_Extended
 CREATE PROCEDURE dbo.APICaller_GET_Extended
@@ -195,8 +186,7 @@ CREATE PROCEDURE dbo.APICaller_GET_Extended
     @JsonBody NVARCHAR(MAX) NULL, 
     @Headers NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_GET_Extended];
-
-PRINT 'APICaller_GET_Extended created';
+GO
 
 -- APICaller_POST_Extended
 CREATE PROCEDURE dbo.APICaller_POST_Extended
@@ -204,8 +194,7 @@ CREATE PROCEDURE dbo.APICaller_POST_Extended
     @Headers NVARCHAR(MAX) NULL, 
     @JsonBody NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].[APICaller_POST_Extended];
-
-PRINT 'APICaller_POST_Extended created';
+GO
 
 -- APICaller_POST_Encoded
 CREATE PROCEDURE dbo.APICaller_POST_Encoded
@@ -213,14 +202,14 @@ CREATE PROCEDURE dbo.APICaller_POST_Encoded
     @Headers NVARCHAR(MAX) NULL, 
     @JsonBody NVARCHAR(MAX) NULL
 AS EXTERNAL NAME [API_Consumer].[StoredProcedures].APICaller_POST_Encoded;
-
-PRINT 'APICaller_POST_Encoded created';
+GO
 
 -- =============================================
 -- Create functions
 -- =============================================
 
 PRINT 'Creating functions...';
+Go
 
 -- Create_HMACSHA256
 CREATE FUNCTION dbo.Create_HMACSHA256 
@@ -230,15 +219,13 @@ CREATE FUNCTION dbo.Create_HMACSHA256
 ) 
 RETURNS NVARCHAR(MAX) 
 AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[Create_HMACSHA256];
-
-PRINT 'Create_HMACSHA256 created';
+GO
 
 -- GetTimestamp
 CREATE FUNCTION dbo.GetTimestamp() 
 RETURNS NVARCHAR(MAX) 
 AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].[GetTimestamp];
-
-PRINT 'GetTimestamp created';
+GO
 
 -- fn_GetBytes
 CREATE FUNCTION dbo.fn_GetBytes 
@@ -247,8 +234,7 @@ CREATE FUNCTION dbo.fn_GetBytes
 ) 
 RETURNS NVARCHAR(MAX) 
 AS EXTERNAL NAME [API_Consumer].[UserDefinedFunctions].fn_GetBytes;
-
-PRINT 'fn_GetBytes created';
+GO
 
 PRINT 'Deployment completed for database: {0}';
 "@
