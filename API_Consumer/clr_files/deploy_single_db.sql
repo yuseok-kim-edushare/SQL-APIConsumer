@@ -21,20 +21,99 @@ RECONFIGURE;
 -- Trust assemblies (run once per instance)
 -- =============================================
 
--- Trust API_Consumer assembly
-DECLARE @hash VARBINARY(64);
-SELECT @hash = HASHBYTES('SHA2_512', BulkColumn)
-FROM OPENROWSET(BULK 'C:\CLR\API_Consumer.dll', SINGLE_BLOB) AS x;
+-- Assembly configuration table
+DECLARE @Assemblies TABLE (
+    AssemblyName NVARCHAR(200),
+    AssemblyPath NVARCHAR(500),
+    Description NVARCHAR(500)
+);
 
-IF NOT EXISTS (SELECT * FROM sys.trusted_assemblies WHERE [hash] = @hash)
+-- Define all assemblies to be trusted
+INSERT INTO @Assemblies (AssemblyName, AssemblyPath, Description)
+VALUES 
+    ('API_Consumer', 
+     @dll_path, 
+     N'SQL-APIConsumer Assembly'),
+    
+    ('System.Runtime.Serialization', 
+     'C:\Windows\Microsoft.NET\assembly\GAC_MSIL\System.Runtime.Serialization\v4.0_4.0.0.0__b77a5c561934e089\System.Runtime.Serialization.dll', 
+     N'System.Runtime.Serialization from GAC'),
+    
+    ('SMDiagnostics', 
+     'C:\Windows\Microsoft.NET\assembly\GAC_MSIL\SMDiagnostics\v4.0_4.0.0.0__b77a5c561934e089\SMDiagnostics.dll', 
+     N'SMDiagnostics from GAC'),
+    
+    ('System.ServiceModel.Internals', 
+     'C:\Windows\Microsoft.NET\assembly\GAC_MSIL\System.ServiceModel.Internals\v4.0_4.0.0.0__31bf3856ad364e35\System.ServiceModel.Internals.dll', 
+     N'System.ServiceModel.Internals from GAC');
+
+-- Process each assembly
+DECLARE @AssemblyName NVARCHAR(200);
+DECLARE @AssemblyPath NVARCHAR(500);
+DECLARE @Description NVARCHAR(500);
+DECLARE @Hash VARBINARY(64);
+DECLARE @ErrorMsg NVARCHAR(MAX);
+
+DECLARE assembly_cursor CURSOR LOCAL FAST_FORWARD FOR
+    SELECT AssemblyName, AssemblyPath, Description
+    FROM @Assemblies;
+
+OPEN assembly_cursor;
+FETCH NEXT FROM assembly_cursor INTO @AssemblyName, @AssemblyPath, @Description;
+
+WHILE @@FETCH_STATUS = 0
 BEGIN
-    EXEC sys.sp_add_trusted_assembly @hash = @hash, @description = N'SQL-APIConsumer Assembly';
-    PRINT 'API_Consumer assembly hash added to trusted assemblies.';
+    BEGIN TRY
+        -- Calculate hash for the assembly
+        SET @Hash = NULL;
+        
+        DECLARE @SQL1 NVARCHAR(MAX) = N'
+            SELECT @Hash = HASHBYTES(''SHA2_512'', BulkColumn)
+            FROM OPENROWSET(BULK ''' + @AssemblyPath + ''', SINGLE_BLOB) AS x;';
+        
+        EXEC sp_executesql @SQL1, N'@Hash VARBINARY(64) OUTPUT', @Hash OUTPUT;
+        -- Check if hash already exists
+        IF @Hash IS NOT NULL
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM sys.trusted_assemblies WHERE [hash] = @Hash)
+            BEGIN
+                EXEC sys.sp_add_trusted_assembly @hash = @Hash, @description = @Description;
+                PRINT @AssemblyName + ' assembly hash added to trusted assemblies.';
+            END
+            ELSE
+            BEGIN
+                PRINT @AssemblyName + ' assembly hash already exists in trusted assemblies.';
+            END
+        END
+        ELSE
+        BEGIN
+            PRINT 'WARNING: Could not calculate hash for ' + @AssemblyName + '. File may not exist.';
+        END
+    END TRY
+    BEGIN CATCH
+        SET @ErrorMsg = 'Error processing ' + @AssemblyName + ': ' + ERROR_MESSAGE();
+        PRINT @ErrorMsg;
+    END CATCH;
+
+    FETCH NEXT FROM assembly_cursor INTO @AssemblyName, @AssemblyPath, @Description;
 END
-ELSE
-BEGIN
-    PRINT 'API_Consumer assembly hash already exists in trusted assemblies.';
-END
+
+CLOSE assembly_cursor;
+DEALLOCATE assembly_cursor;
+
+PRINT '';
+PRINT 'Assembly trust configuration completed.';
+
+-- Verify trusted assemblies
+SELECT [description], 
+       CONVERT(VARCHAR(MAX), [hash], 2) AS hash_hex,
+       create_date
+FROM sys.trusted_assemblies
+WHERE [description] LIKE '%API_Consumer%' 
+   OR [description] LIKE '%System.Runtime.Serialization%'
+   OR [description] LIKE '%SMDiagnostics%'
+   OR [description] LIKE '%System.ServiceModel.Internals%'
+ORDER BY create_date DESC;
 
 -- =============================================
 -- Switch to target database
